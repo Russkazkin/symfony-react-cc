@@ -1,0 +1,24 @@
+#config/packages/api_platform.yaml
+api_platform:
+  # The title of the API.
+  title: 'Avido API'
+
+  # The description of the API.
+  description: 'API for Avido React App'
+
+  # The version of the API.
+  version: '0.0.1'
+
+  # Set this to false if you want Webby to disappear.
+  show_webby: false
+
+  mapping:
+    paths: ['%kernel.project_dir%/src/Entity']
+  patch_formats:
+    json: ['application/merge-patch+json']
+  swagger:
+    versions: [3]
+    api_keys:
+      Bearer:
+        name: AUTH-TOKEN
+        type: header

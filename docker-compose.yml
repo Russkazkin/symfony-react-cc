@@ -1,0 +1,84 @@
+version: "3.7"
+services:
+  traefik:
+    build:
+      context: docker/traefik
+      dockerfile: Dockerfile
+    ports:
+      - '8090:80'
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./docker
+      dockerfile: nginx/Dockerfile
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.back.rule=Host(`avido.app.localhost`)'
+    volumes:
+      - ./api/public:/app/public:cached
+    restart: unless-stopped
+
+  php-cli:
+    build:
+      context: ./docker
+      dockerfile: php-cli/Dockerfile
+    environment:
+      APP_DEBUG: 1
+      APP_ENV: dev
+    volumes:
+      -   ./api:/app:cached
+
+  php-fpm:
+    build:
+      context: ./docker
+      dockerfile: php-fpm/Dockerfile
+    environment:
+      APP_DEBUG: 1
+      APP_ENV: dev
+    volumes:
+      -   ./api:/app:cached
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-14}-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMe}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    volumes:
+      - postgres:/var/lib/postgresql/data:cached
+    ports:
+      - "54321:5432"
+    restart: unless-stopped
+
+  front:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.front.rule=Host(`avido.app.localhost`) && PathPrefix(`/app`) || PathPrefix(`/react`)'
+      - 'traefik.http.services.front.loadbalancer.server.port=3000'
+    environment:
+      WDS_SOCKET_PATH: '/react/sockjs-node'
+      WDS_SOCKET_PORT: 8090
+    volumes:
+      - ./frontend:/usr/src/app:rw,cached
+    restart: unless-stopped
+
+  mailhog:
+    image: mailhog/mailhog
+    logging:
+      driver: 'none'
+    ports:
+      - '1125:1025'
+      - '8125:8025'
+
+volumes:
+  postgres:
